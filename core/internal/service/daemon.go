@@ -797,11 +797,8 @@ func (d *Daemon) addSignedInAccount(email, password string, token *fxa.TokenResp
 		return accounts.Account{}, err
 	}
 	d.pool.Forget(acc.ID)
-	if password != "" {
-		if err := d.store.SetPassword(acc.ID, password); err != nil {
-			logx.Warn("saving the account password failed account=%s err=%s", logx.Email(acc.Name()), logx.Err(err))
-		}
-	}
+	// The Firefox Account password is never kept: it would sit on disk with
+	// its key beside it. An account that needs it again signs in again.
 	go d.pool.EnsureDevice(context.Background(), acc.ID)
 	if created {
 		logx.Info("account added account=%s id=%s", logx.Email(acc.Name()), acc.ID)

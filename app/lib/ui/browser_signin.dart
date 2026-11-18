@@ -241,7 +241,7 @@ class _BrowserSignInPageState extends State<BrowserSignInPage> {
     // Closed before the core finished: that sign-in ends too.
     _stopFollowing(cancel: true);
     _messages?.cancel();
-    _windows?.dispose();
+    _wipeAndDisposeWindows(_windows).ignore();
     // Mozilla's page leaves cookies and storage in the view's profile:
     // wipe them with the sign-in (Android, macOS).
     final view = _view;
@@ -292,9 +292,50 @@ class _BrowserSignInPageState extends State<BrowserSignInPage> {
     }
   }
 
+  /// Mozilla's page leaves cookies and storage in the embedded browser's
+  /// profile. Before the view goes, wipe what the plugin can (cookies, cache)
+  /// and the page's own storage, then dispose it.
+  Future<void> _wipeAndDisposeWindows(ww.WebviewController? c) async {
+    if (c == null) return;
+    try {
+      await c
+          .executeScript(
+            'try{localStorage.clear();sessionStorage.clear();'
+            'if(indexedDB.databases)indexedDB.databases().then(function(l){'
+            'l.forEach(function(d){indexedDB.deleteDatabase(d.name);});});}'
+            'catch(e){}',
+          )
+          .timeout(const Duration(seconds: 2));
+      await c.clearCookies().timeout(const Duration(seconds: 2));
+      await c.clearCache().timeout(const Duration(seconds: 2));
+    } on Object {
+      // Best effort: the profile folder is also removed at the next sign-in.
+    }
+    await c.dispose();
+  }
+
+  /// The plugin keeps the embedded browser's profile in
+  /// LocalAppData\flutter_webview_windows\<app>. Remove the one an earlier
+  /// run left, before the browser starts and holds it.
+  void _removeOldWindowsProfile() {
+    try {
+      final base = Platform.environment['LOCALAPPDATA'];
+      if (base == null || base.isEmpty) return;
+      final exe = Platform.resolvedExecutable.split(RegExp(r'[\\/]')).last;
+      final stem = exe.toLowerCase().endsWith('.exe')
+          ? exe.substring(0, exe.length - 4)
+          : exe;
+      final dir = Directory('$base\\flutter_webview_windows\\$stem');
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    } on Object {
+      // In use, or not ours to remove: the wipe on close still applies.
+    }
+  }
+
   Future<void> _initWindows(String? proxy) async {
     if (!_windowsEnvironmentReady) {
       _windowsEnvironmentReady = true;
+      _removeOldWindowsProfile();
       try {
         await ww.WebviewController.initializeEnvironment(
           additionalArguments: proxy == null ? null : '--proxy-server=$proxy',
