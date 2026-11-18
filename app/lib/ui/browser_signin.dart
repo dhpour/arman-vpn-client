@@ -242,6 +242,14 @@ class _BrowserSignInPageState extends State<BrowserSignInPage> {
     _stopFollowing(cancel: true);
     _messages?.cancel();
     _windows?.dispose();
+    // Mozilla's page leaves cookies and storage in the view's profile:
+    // wipe them with the sign-in (Android, macOS).
+    final view = _view;
+    if (view != null) {
+      view.clearCache().ignore();
+      view.clearLocalStorage().ignore();
+      wf.WebViewCookieManager().clearCookies().ignore();
+    }
     if (_viewProxySet) _setViewProxy(null).ignore();
     if (_proxyOpen) widget.core.api?.closeSignInProxy().ignore();
     super.dispose();

@@ -1,0 +1,122 @@
+diff --git a/app/android/app/src/main/AndroidManifest.xml b/app/android/app/src/main/AndroidManifest.xml
+index 34734e8..341a2d8 100644
+--- a/app/android/app/src/main/AndroidManifest.xml
++++ b/app/android/app/src/main/AndroidManifest.xml
+@@ -21,7 +21,7 @@
+         android:name="${applicationName}"
+         android:icon="@mipmap/ic_launcher"
+         android:banner="@drawable/banner"
+-        android:allowBackup="true"
++        android:allowBackup="false"
+         android:fullBackupContent="@xml/backup_rules"
+         android:dataExtractionRules="@xml/data_extraction_rules">
+         <activity
+diff --git a/app/android/app/src/main/res/xml/backup_rules.xml b/app/android/app/src/main/res/xml/backup_rules.xml
+index 210e2a2..cb16595 100644
+--- a/app/android/app/src/main/res/xml/backup_rules.xml
++++ b/app/android/app/src/main/res/xml/backup_rules.xml
+@@ -1,13 +1,11 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<!-- Auto Backup (Android 6 to 11): everything, so a new phone keeps the
+-     accounts and the settings, except what the core makes again: logs,
+-     routing lists, caches, per-run files, and downloaded updates. -->
++<!-- Auto Backup (Android 6 to 11): nothing. The app's data holds the
++     account tokens (and a stored password with its key beside it), which
++     must not leave the device in a backup. -->
+ <full-backup-content>
+-    <exclude domain="file" path="core/logs/" />
+-    <exclude domain="file" path="core/routing/" />
+-    <exclude domain="file" path="core/servers.json" />
+-    <exclude domain="file" path="core/status.json" />
+-    <exclude domain="file" path="core/local-api.token" />
+-    <exclude domain="file" path="core/tun2socks.yml" />
+-    <exclude domain="file" path="core/update/" />
++    <exclude domain="root" path="." />
++    <exclude domain="file" path="." />
++    <exclude domain="database" path="." />
++    <exclude domain="sharedpref" path="." />
++    <exclude domain="external" path="." />
+ </full-backup-content>
+diff --git a/app/android/app/src/main/res/xml/data_extraction_rules.xml b/app/android/app/src/main/res/xml/data_extraction_rules.xml
+index ec293e8..c1933bf 100644
+--- a/app/android/app/src/main/res/xml/data_extraction_rules.xml
++++ b/app/android/app/src/main/res/xml/data_extraction_rules.xml
+@@ -1,23 +1,19 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<!-- Cloud backup and device-to-device transfer (Android 12 and later), as
+-     backup_rules.xml: everything but what the core makes again. -->
++<!-- Cloud backup and device-to-device transfer (Android 12 and later):
++     nothing, as backup_rules.xml. -->
+ <data-extraction-rules>
+     <cloud-backup>
+-        <exclude domain="file" path="core/logs/" />
+-        <exclude domain="file" path="core/routing/" />
+-        <exclude domain="file" path="core/servers.json" />
+-        <exclude domain="file" path="core/status.json" />
+-        <exclude domain="file" path="core/local-api.token" />
+-        <exclude domain="file" path="core/tun2socks.yml" />
+-        <exclude domain="file" path="core/update/" />
++        <exclude domain="root" path="." />
++        <exclude domain="file" path="." />
++        <exclude domain="database" path="." />
++        <exclude domain="sharedpref" path="." />
++        <exclude domain="external" path="." />
+     </cloud-backup>
+     <device-transfer>
+-        <exclude domain="file" path="core/logs/" />
+-        <exclude domain="file" path="core/routing/" />
+-        <exclude domain="file" path="core/servers.json" />
+-        <exclude domain="file" path="core/status.json" />
+-        <exclude domain="file" path="core/local-api.token" />
+-        <exclude domain="file" path="core/tun2socks.yml" />
+-        <exclude domain="file" path="core/update/" />
++        <exclude domain="root" path="." />
++        <exclude domain="file" path="." />
++        <exclude domain="database" path="." />
++        <exclude domain="sharedpref" path="." />
++        <exclude domain="external" path="." />
+     </device-transfer>
+ </data-extraction-rules>
+diff --git a/app/lib/ui/browser_signin.dart b/app/lib/ui/browser_signin.dart
+index 94d5c0a..5db861a 100644
+--- a/app/lib/ui/browser_signin.dart
++++ b/app/lib/ui/browser_signin.dart
+@@ -242,6 +242,14 @@ class _BrowserSignInPageState extends State<BrowserSignInPage> {
+     _stopFollowing(cancel: true);
+     _messages?.cancel();
+     _windows?.dispose();
++    // Mozilla's page leaves cookies and storage in the view's profile:
++    // wipe them with the sign-in (Android, macOS).
++    final view = _view;
++    if (view != null) {
++      view.clearCache().ignore();
++      view.clearLocalStorage().ignore();
++      wf.WebViewCookieManager().clearCookies().ignore();
++    }
+     if (_viewProxySet) _setViewProxy(null).ignore();
+     if (_proxyOpen) widget.core.api?.closeSignInProxy().ignore();
+     super.dispose();
+diff --git a/core/internal/config/config.go b/core/internal/config/config.go
+index aea702b..ab3ec0d 100644
+--- a/core/internal/config/config.go
++++ b/core/internal/config/config.go
+@@ -347,7 +347,7 @@ func Default() Config {
+ 		},
+ 		Network: Network{
+ 			APIRelayEnabled:    true,
+-			SharedRelayEnabled: true,
++			SharedRelayEnabled: false,
+ 			APIRelayECH:        RelayECHOn,
+ 			GuardianEndpoint:   guardian.DefaultEndpoint,
+ 			HelloSplit:         hellosplit.Off,
+@@ -361,8 +361,8 @@ func Default() Config {
+ 		SystemProxy: SystemProxy{Mode: SystemProxyClear},
+ 		Tun:         Tun{Programs: []TunProgram{}},
+ 		Routing: Routing{
+-			Region:         routing.RegionIran,
+-			Direct:         routing.RegionRules(routing.RegionIran),
++			Region:         routing.NoRegion,
++			Direct:         routing.RegionRules(routing.NoRegion),
+ 			Block:          []string{},
+ 			GeoSiteURL:     routing.DefaultGeoSiteURL,
+ 			GeoIPURL:       routing.DefaultGeoIPURL,

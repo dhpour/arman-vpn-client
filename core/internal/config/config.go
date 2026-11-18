@@ -347,7 +347,7 @@ func Default() Config {
 		},
 		Network: Network{
 			APIRelayEnabled:    true,
-			SharedRelayEnabled: true,
+			SharedRelayEnabled: false,
 			APIRelayECH:        RelayECHOn,
 			GuardianEndpoint:   guardian.DefaultEndpoint,
 			HelloSplit:         hellosplit.Off,
@@ -361,8 +361,8 @@ func Default() Config {
 		SystemProxy: SystemProxy{Mode: SystemProxyClear},
 		Tun:         Tun{Programs: []TunProgram{}},
 		Routing: Routing{
-			Region:         routing.RegionIran,
-			Direct:         routing.RegionRules(routing.RegionIran),
+			Region:         routing.NoRegion,
+			Direct:         routing.RegionRules(routing.NoRegion),
 			Block:          []string{},
 			GeoSiteURL:     routing.DefaultGeoSiteURL,
 			GeoIPURL:       routing.DefaultGeoIPURL,
