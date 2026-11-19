@@ -86,8 +86,14 @@ func TestSharedRelayDefaultDoesNotInheritDisabledPersonalRelay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Network.APIRelayEnabled || !cfg.Network.SharedRelayInUse() {
-		t.Fatal("an old disabled personal relay disabled the new shared relay default")
+	// This build's shared relay default is off: a disabled personal relay
+	// neither changes that nor switches off a shared relay that is turned on.
+	if cfg.Network.APIRelayEnabled || cfg.Network.SharedRelayInUse() {
+		t.Fatal("an old disabled personal relay changed the shared relay default")
+	}
+	cfg.Network.SharedRelayEnabled = true
+	if !cfg.Network.SharedRelayInUse() {
+		t.Fatal("a disabled personal relay switched the shared relay off")
 	}
 	cfg.Network.SharedRelayEnabled = false
 	if err := Save(path, cfg); err != nil {
@@ -306,11 +312,12 @@ func TestTunProgramsAreFileNames(t *testing.T) {
 	}
 }
 
-// Routing defaults to the Iran region with its preset rules in the Direct
-// list and the Chocolate4U lists; an explicit empty region means none.
+// This build routes with no region by default: only the private networks are
+// in the Direct list. The lists are still the Chocolate4U ones, and "ir" and
+// the other regions stay valid choices.
 func TestRoutingRegionDefaultsAndValues(t *testing.T) {
 	cfg := Default()
-	if cfg.Routing.Enabled || cfg.Routing.Region != "ir" || strings.Join(cfg.Routing.Direct, " ") != "geosite:ir ext:iran.dat:ir geoip:ir geoip:private" {
+	if cfg.Routing.Enabled || cfg.Routing.Region != "" || strings.Join(cfg.Routing.Direct, " ") != "geoip:private" {
 		t.Fatalf("routing defaults: %+v", cfg.Routing)
 	}
 	for _, u := range []string{cfg.Routing.GeoSiteURL, cfg.Routing.GeoIPURL} {

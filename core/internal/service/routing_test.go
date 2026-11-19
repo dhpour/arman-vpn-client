@@ -59,14 +59,19 @@ func TestRoutingSettingsApplyLive(t *testing.T) {
 	if cfg.Routing.Enabled || d.routingView().Active {
 		t.Fatal("routing must be off by default")
 	}
-	// The region's presets are in the Direct list itself.
-	if cfg.Routing.Region != "ir" || strings.Join(cfg.Routing.Direct, " ") != "geosite:ir ext:iran.dat:ir geoip:ir geoip:private" {
+	// This build starts with no region: only the private networks are in the
+	// Direct list.
+	if cfg.Routing.Region != "" || strings.Join(cfg.Routing.Direct, " ") != "geoip:private" {
 		t.Fatalf("default region %q and direct rules %q", cfg.Routing.Region, cfg.Routing.Direct)
 	}
 	if got := strings.Join(d.routingView().Direct, " "); got != strings.Join(cfg.Routing.Direct, " ") {
 		t.Fatalf("default effective direct rules %q", got)
 	}
 
+	// The rest of the flow starts from Iran's presets, which are in the
+	// Direct list itself.
+	cfg.Routing.Region = "ir"
+	cfg.Routing.Direct = routing.RegionRules(routing.RegionIran)
 	cfg.Routing.Enabled = true
 	if _, err := d.updateSettings(cfg, nil); err != nil {
 		t.Fatal(err)
