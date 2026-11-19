@@ -163,7 +163,10 @@ func TestDestinationTest(t *testing.T) {
 	cfg := d.config()
 	cfg.Routing.Enabled = true
 	cfg.Routing.Region = ""
-	cfg.Routing.Direct = []string{"domain:shop.ir", "10.0.0.0/8"}
+	// This build already has no region, so no region change swaps the private
+	// networks in: they are in the Direct list by default, and stay in it
+	// with the user's own rules.
+	cfg.Routing.Direct = []string{"geoip:private", "domain:shop.ir", "10.0.0.0/8"}
 	cfg.Routing.Block = []string{"full:ads.example"}
 	if _, err := d.updateSettings(cfg, nil); err != nil {
 		t.Fatal(err)
